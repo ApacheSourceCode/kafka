@@ -29,6 +29,7 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.MockStreamsMetrics;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -215,6 +216,29 @@ public class CachingInMemoryKeyValueStoreTest extends AbstractKeyValueStoreTest 
         // nothing evicted so underlying store should be empty
         assertEquals(2, cache.size());
         assertEquals(0, underlyingStore.approximateNumEntries());
+    }
+
+    @Test
+    public void shouldMatchPositionAfterPut() {
+        final List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
+        entries.add(new KeyValue<>(bytesKey("key1"), bytesValue("value1")));
+        entries.add(new KeyValue<>(bytesKey("key2"), bytesValue("value2")));
+        entries.add(new KeyValue<>(bytesKey("key3"), bytesValue("value3")));
+        entries.add(new KeyValue<>(bytesKey("key4"), bytesValue("value4")));
+        entries.add(new KeyValue<>(bytesKey("key5"), bytesValue("value5")));
+
+        final MonotonicProcessorRecordContext recordContext = new MonotonicProcessorRecordContext("input", 0, false);
+        context.setRecordContext(recordContext);
+
+        final Position expected = Position.emptyPosition();
+        for (final KeyValue<Bytes, byte[]> k : entries) {
+            store.put(k.key, k.value);
+            expected.withComponent(recordContext.topic(), recordContext.partition(), recordContext.offset());
+            recordContext.kick();
+        }
+
+        final Position actual = store.getPosition();
+        assertEquals(expected, actual);
     }
 
     private byte[] bytesValue(final String value) {

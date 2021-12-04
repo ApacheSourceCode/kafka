@@ -26,6 +26,7 @@ import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.slf4j.Logger;
@@ -54,6 +55,7 @@ public class CachingKeyValueStore
     private InternalProcessorContext<?, ?> context;
     private Thread streamThread;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private Position position;
 
     CachingKeyValueStore(final KeyValueStore<Bytes, byte[]> underlying) {
         super(underlying);
@@ -80,8 +82,13 @@ public class CachingKeyValueStore
         streamThread = Thread.currentThread();
     }
 
+    Position getPosition() {
+        return position;
+    }
+
     private void initInternal(final InternalProcessorContext<?, ?> context) {
         this.context = context;
+        this.position = Position.emptyPosition();
 
         this.cacheName = ThreadCache.nameSpaceFromTaskIdAndStore(context.taskId().toString(), name());
         this.context.registerCacheFlushListener(cacheName, entries -> {
@@ -158,6 +165,8 @@ public class CachingKeyValueStore
                 context.timestamp(),
                 context.partition(),
                 context.topic()));
+
+        StoreQueryUtils.updatePosition(position, context);
     }
 
     @Override
