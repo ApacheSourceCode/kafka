@@ -154,7 +154,6 @@ public class KafkaProducerTest {
     private static final int DEFAULT_METADATA_IDLE_MS = 5 * 60 * 1000;
     private static final Node NODE = new Node(0, "host1", 1000);
 
-
     private static <K, V> KafkaProducer<K, V> kafkaProducer(Map<String, Object> configs,
                   Serializer<K> keySerializer,
                   Serializer<V> valueSerializer,
