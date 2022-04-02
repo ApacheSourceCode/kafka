@@ -24,7 +24,7 @@ import java.util.concurrent.{CompletableFuture, TimeUnit}
 
 import kafka.api.KAFKA_3_2_IV0
 import kafka.cluster.Broker.ServerInfo
-import kafka.metrics.{KafkaMetricsGroup, KafkaYammerMetrics, LinuxIoMetricsCollector}
+import kafka.metrics.{KafkaMetricsGroup, LinuxIoMetricsCollector}
 import kafka.network.{DataPlaneAcceptor, SocketServer}
 import kafka.raft.RaftManager
 import kafka.security.CredentialProvider
@@ -45,6 +45,7 @@ import org.apache.kafka.server.authorizer.Authorizer
 import org.apache.kafka.server.common.ApiMessageAndVersion
 import org.apache.kafka.common.config.ConfigException
 import org.apache.kafka.metadata.authorizer.ClusterMetadataAuthorizer
+import org.apache.kafka.server.metrics.KafkaYammerMetrics
 import org.apache.kafka.server.policy.{AlterConfigPolicy, CreateTopicPolicy}
 
 import scala.jdk.CollectionConverters._
@@ -182,7 +183,8 @@ class ControllerServer(
           setMetrics(new QuorumControllerMetrics(KafkaYammerMetrics.defaultRegistry())).
           setCreateTopicPolicy(createTopicPolicy.asJava).
           setAlterConfigPolicy(alterConfigPolicy.asJava).
-          setConfigurationValidator(new ControllerConfigurationValidator())
+          setConfigurationValidator(new ControllerConfigurationValidator()).
+          setStaticConfig(config.originals)
       }
       authorizer match {
         case Some(a: ClusterMetadataAuthorizer) => controllerBuilder.setAuthorizer(a)
