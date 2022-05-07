@@ -92,7 +92,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
-public class TimeOrderedCachingPersistentWindowStoreTest {
+public class TimeOrderedWindowStoreTest {
 
     private static final int MAX_CACHE_SIZE_BYTES = 300;
     private static final long DEFAULT_TIMESTAMP = 10L;
@@ -102,7 +102,7 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     private static final String CACHE_NAMESPACE = "0_0-store-name";
 
     private InternalMockProcessorContext context;
-    private RocksDBTimeOrderedSegmentedBytesStore bytesStore;
+    private RocksDBTimeOrderedWindowSegmentedBytesStore bytesStore;
     private WindowStore<Bytes, byte[]> underlyingStore;
     private TimeOrderedCachingWindowStore cachingStore;
     private CacheFlushListenerStub<Windowed<String>, String> cacheListener;
@@ -123,7 +123,7 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     @Before
     public void setUp() {
         baseKeySchema = new TimeFirstWindowKeySchema();
-        bytesStore = new RocksDBTimeOrderedSegmentedBytesStore("test", "metrics-scope", 100, SEGMENT_INTERVAL, hasIndex);
+        bytesStore = new RocksDBTimeOrderedWindowSegmentedBytesStore("test", "metrics-scope", 100, SEGMENT_INTERVAL, hasIndex);
         underlyingStore = new RocksDBTimeOrderedWindowStore(bytesStore, false, WINDOW_SIZE);
         final TimeWindowedDeserializer<String> keyDeserializer = new TimeWindowedDeserializer<>(new StringDeserializer(), WINDOW_SIZE);
         keyDeserializer.setIsChangelogTopic(true);
@@ -245,7 +245,6 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
 
                     context.forward(record);
                 }
-
 
                 @Override
                 public void close() {
@@ -890,7 +889,6 @@ public class TimeOrderedCachingPersistentWindowStoreTest {
     public void shouldSkipNonExistBaseKeyInCache() {
         cachingStore.put(bytesKey("aa"), bytesValue("0002"), 0);
 
-        final SegmentedCacheFunction baseCacheFunction = new SegmentedCacheFunction(new TimeFirstWindowKeySchema(), SEGMENT_INTERVAL);
         final SegmentedCacheFunction indexCacheFunction = new SegmentedCacheFunction(new KeyFirstWindowKeySchema(), SEGMENT_INTERVAL);
 
         final Bytes key = bytesKey("a");
