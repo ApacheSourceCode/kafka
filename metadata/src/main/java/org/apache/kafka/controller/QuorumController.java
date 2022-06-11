@@ -489,7 +489,7 @@ public final class QuorumController implements Controller {
             if (!snapshotRegistry.hasSnapshot(committedOffset)) {
                 throw new RuntimeException(
                     String.format(
-                        "Cannot generate a snapshot at committed offset %s because it does not exists in the snapshot registry.",
+                        "Cannot generate a snapshot at committed offset %d because it does not exists in the snapshot registry.",
                         committedOffset
                     )
                 );
@@ -622,9 +622,14 @@ public final class QuorumController implements Controller {
         }
     }
 
-    // VisibleForTesting
+    // Visible for testing
     ReplicationControlManager replicationControl() {
         return replicationControl;
+    }
+
+    // Visible for testing
+    ClusterControlManager clusterControl() {
+        return clusterControl;
     }
 
     <T> CompletableFuture<T> appendReadEvent(
@@ -852,7 +857,7 @@ public final class QuorumController implements Controller {
                     if (isActiveController()) {
                         throw new IllegalStateException(
                             String.format(
-                                "Asked to load snapshot (%s) when it is the active controller (%s)",
+                                "Asked to load snapshot (%s) when it is the active controller (%d)",
                                 reader.snapshotId(),
                                 curClaimEpoch
                             )
@@ -1557,6 +1562,11 @@ public final class QuorumController implements Controller {
             setNodeId(nodeId).
             build();
         this.clientQuotaControlManager = new ClientQuotaControlManager(snapshotRegistry);
+        this.featureControl = new FeatureControlManager.Builder().
+            setLogContext(logContext).
+            setQuorumFeatures(quorumFeatures).
+            setSnapshotRegistry(snapshotRegistry).
+            build();
         this.clusterControl = new ClusterControlManager.Builder().
             setLogContext(logContext).
             setClusterId(clusterId).
@@ -1565,12 +1575,8 @@ public final class QuorumController implements Controller {
             setSessionTimeoutNs(sessionTimeoutNs).
             setReplicaPlacer(replicaPlacer).
             setControllerMetrics(controllerMetrics).
+            setFeatureControlManager(featureControl).
             build();
-        this.featureControl = new FeatureControlManager.Builder().
-                setLogContext(logContext).
-                setQuorumFeatures(quorumFeatures).
-                setSnapshotRegistry(snapshotRegistry).
-                build();
         this.producerIdControlManager = new ProducerIdControlManager(clusterControl, snapshotRegistry);
         this.snapshotMaxNewRecordBytes = snapshotMaxNewRecordBytes;
         this.leaderImbalanceCheckIntervalNs = leaderImbalanceCheckIntervalNs;
