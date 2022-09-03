@@ -56,7 +56,6 @@ class Tasks implements TasksRegistry {
     private final Map<TaskId, Set<TopicPartition>> pendingTasksToUpdateInputPartitions = new HashMap<>();
     private final Set<Task> pendingTasksToInit = new HashSet<>();
     private final Set<TaskId> pendingTasksToCloseClean = new HashSet<>();
-
     private final Set<TaskId> pendingTasksToCloseDirty = new HashSet<>();
 
     // TODO: convert to Stream/StandbyTask when we remove TaskManager#StateMachineTask with mocks
@@ -155,43 +154,42 @@ class Tasks implements TasksRegistry {
     }
 
     @Override
-    public void addNewActiveTasks(final Collection<Task> newTasks) {
+    public void addActiveTasks(final Collection<Task> newTasks) {
         if (!newTasks.isEmpty()) {
             for (final Task activeTask : newTasks) {
-                final TaskId taskId = activeTask.id();
-
-                if (activeTasksPerId.containsKey(taskId)) {
-                    throw new IllegalStateException("Attempted to create an active task that we already own: " + taskId);
-                }
-
-                if (standbyTasksPerId.containsKey(taskId)) {
-                    throw new IllegalStateException("Attempted to create an active task while we already own its standby: " + taskId);
-                }
-
-                activeTasksPerId.put(activeTask.id(), activeTask);
-                for (final TopicPartition topicPartition : activeTask.inputPartitions()) {
-                    activeTasksPerPartition.put(topicPartition, activeTask);
-                }
+                addTask(activeTask);
             }
         }
     }
 
     @Override
-    public void addNewStandbyTasks(final Collection<Task> newTasks) {
+    public void addStandbyTasks(final Collection<Task> newTasks) {
         if (!newTasks.isEmpty()) {
             for (final Task standbyTask : newTasks) {
-                final TaskId taskId = standbyTask.id();
-
-                if (standbyTasksPerId.containsKey(taskId)) {
-                    throw new IllegalStateException("Attempted to create an standby task that we already own: " + taskId);
-                }
-
-                if (activeTasksPerId.containsKey(taskId)) {
-                    throw new IllegalStateException("Attempted to create an standby task while we already own its active: " + taskId);
-                }
-
-                standbyTasksPerId.put(standbyTask.id(), standbyTask);
+                addTask(standbyTask);
             }
+        }
+    }
+
+    @Override
+    public void addTask(final Task task) {
+        final TaskId taskId = task.id();
+        if (activeTasksPerId.containsKey(taskId)) {
+            throw new IllegalStateException("Attempted to create an active task that we already own: " + taskId);
+        }
+
+        if (standbyTasksPerId.containsKey(taskId)) {
+            throw new IllegalStateException("Attempted to create an active task while we already own its standby: " + taskId);
+        }
+
+        if (task.isActive()) {
+            activeTasksPerId.put(task.id(), task);
+            pendingActiveTasksToCreate.remove(task.id());
+            for (final TopicPartition topicPartition : task.inputPartitions()) {
+                activeTasksPerPartition.put(topicPartition, task);
+            }
+        } else {
+            standbyTasksPerId.put(task.id(), task);
         }
     }
 
@@ -337,15 +335,5 @@ class Tasks implements TasksRegistry {
     @Override
     public boolean contains(final TaskId taskId) {
         return getTask(taskId) != null;
-    }
-
-    // for testing only
-    @Override
-    public void addTask(final Task task) {
-        if (task.isActive()) {
-            activeTasksPerId.put(task.id(), task);
-        } else {
-            standbyTasksPerId.put(task.id(), task);
-        }
     }
 }
